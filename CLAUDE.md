@@ -292,11 +292,11 @@ git commit -m "chore: Turborepo + pnpm workspace 초기화"
 - [x] AI 요약/태그 결과 표시
 
 **후반 (4일): MSA 분리**
-- [ ] `apps/api`를 4개로 분리: gateway, auth-service, memo-service, ai-service
-- [ ] `@nestjs/microservices` TCP transport 적용
-- [ ] `libs/common`에 공유 DTO, 인터페이스 추출
-- [ ] `@MessagePattern` 핸들러 작성
-- [ ] gateway에서 `ClientProxy`로 서비스 호출
+- [x] `apps/api`를 4개로 분리: gateway, auth-service, memo-service, ai-service
+- [x] `@nestjs/microservices` TCP transport 적용
+- [x] `libs/common`에 공유 DTO, 인터페이스 추출 (message patterns, service tokens)
+- [x] `@MessagePattern` 핸들러 작성
+- [x] gateway에서 `ClientProxy`로 서비스 호출
 - [ ] Redis Pub/Sub로 일부 통신 전환 (메모 작성 → AI 처리)
 - [ ] **ADR 작성**: `001-msa-split.md`, `002-db-per-service.md`, `003-transport-redis-pubsub.md`
 
@@ -722,7 +722,7 @@ EKS 사용 시 작업 종료 시 무조건 클러스터 삭제. 매니페스트�
 ## 현재 진행 상태
 
 - [x] Phase 1: Nest.js 모놀리식 + Turborepo 셋업 (테스트 제외)
-- [ ] Phase 2: Next.js + MSA 분리 (전반 완료)
+- [x] Phase 2: Next.js + MSA 분리 (Redis Pub/Sub, ADR 제외)
 - [ ] Phase 3: Docker + 로컬 K8s
 - [ ] Phase 4: EKS + Github Actions CI/CD
 - [ ] Phase 5: ArgoCD GitOps
