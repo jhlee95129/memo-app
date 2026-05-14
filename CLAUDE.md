@@ -63,7 +63,7 @@
 - **K8s 프로덕션**: AWS EKS
 - **Helm 3**: Chart 기반 배포 (환경별 values 분리)
 - **CI**: Github Actions
-- **CD**: Github Actions → Helm (Phase 4), 후 ArgoCD GitOps (Phase 5)
+- **CD**: Github Actions → Helm
 - **Registry**: ECR (prod), 로컬 빌드 (dev)
 - **Ingress**: nginx-ingress (kind), AWS Load Balancer Controller (EKS)
 - **TLS**: cert-manager + Let's Encrypt (도메인 있을 시)
@@ -169,8 +169,6 @@ memo-app/
 │   └── web/
 ├── k8s/
 │   └── infra/                # cert-manager, ingress, namespace
-├── argocd/                   # Phase 5 추가
-│   └── applications/
 ├── docs/
 │   ├── decisions/            # ADR (Architecture Decision Records)
 │   │   ├── 001-msa-split.md
@@ -257,7 +255,7 @@ git add .
 git commit -m "chore: Turborepo + pnpm workspace 초기화"
 ```
 
-## 학습 로드맵 (5주)
+## 학습 로드맵 (4주)
 
 ---
 
@@ -332,57 +330,35 @@ git commit -m "chore: Turborepo + pnpm workspace 초기화"
 ### Phase 4: EKS + Github Actions CI/CD (Week 4)
 
 **EKS 셋업:**
-- [ ] AWS 계정, IAM 사용자/Role
-- [ ] `eksctl`로 EKS 클러스터 (t3.small Spot × 2)
-- [ ] ECR 레포지토리 5개 생성
-- [ ] AWS Load Balancer Controller 설치
-- [ ] cert-manager + Let's Encrypt (도메인 있을 시)
+- [x] AWS 계정, IAM 사용자/Role (jhlee95129 프로필)
+- [x] `eksctl` 클러스터 설정 (`eksctl/cluster.yaml`, t3.small Spot × 2)
+- [x] ECR 레포지토리 생성 스크립트 (`scripts/setup-ecr.sh`)
+- [x] AWS Load Balancer Controller 설치 스크립트 (`scripts/setup-alb-controller.sh`)
+- [ ] 도메인 없음 → cert-manager 스킵, ALB DNS로 접속
 
-**매니지드 DB 연결:**
-- [ ] MongoDB Atlas M0 무료 tier
-- [ ] Supabase PostgreSQL 무료 tier
-- [ ] Upstash Redis 무료 tier
-- [ ] `values-prod.yaml`에 연결 정보 (Secret으로)
+**Helm prod 환경:**
+- [x] `values-prod.yaml` 5개 생성 (ECR, 리소스 증가, ALB ingress)
+- [ ] 매니지드 DB 연결 (MongoDB Atlas, Supabase, Upstash) — placeholder 상태
 
 **Github Actions:**
-- [ ] PR 워크플로우: lint + test (matrix: 5개 앱)
-- [ ] main push 워크플로우: build + push to ECR + helm upgrade
-- [ ] Secrets: AWS credentials, DB URI, JWT secret, Claude API key
-- [ ] Turborepo 캐시 활용 (`turbo build --cache-dir=.turbo`)
+- [x] PR 워크플로우: build + Docker build 검증 (`.github/workflows/ci.yml`)
+- [x] main push 워크플로우: ECR push + helm upgrade (`.github/workflows/cd.yml`)
+- [ ] GitHub Secrets 설정 (AWS credentials)
 
-**비용 관리:**
-- [ ] 작업 종료 시 `eksctl delete cluster` 필수
-- [ ] 클러스터 재생성 스크립트 준비
+**실행 (수동):**
+- [ ] `eksctl create cluster -f eksctl/cluster.yaml`
+- [ ] `bash scripts/setup-ecr.sh`
+- [ ] `bash scripts/setup-alb-controller.sh`
+- [ ] helm install + 동작 검증
+- [ ] 작업 종료 시 `eksctl delete cluster --name memo-prod` 필수
 
 **ADR:** `006-eks-vs-self-hosted.md`, `007-secret-management.md`, `008-ci-cd-pipeline.md`
 
 **완료 조건:** main push → EKS 자동 배포, 도메인 접속, README에 스크린샷
 
----
-
-### Phase 5: ArgoCD GitOps (Week 5)
-
-- [ ] EKS에 ArgoCD 설치 (helm)
-- [ ] ArgoCD UI 접속 (port-forward 또는 Ingress)
-- [ ] 매니페스트 레포 분리 결정:
-  - 옵션 A: 같은 레포의 `manifests/` 폴더
-  - 옵션 B: 별도 `memo-app-manifests` 레포 (실무 패턴)
-- [ ] ArgoCD Application 매니페스트 (5개 서비스)
-- [ ] Github Actions 수정:
-  - 기존: `helm upgrade` 직접 호출
-  - 변경: manifests 레포의 이미지 태그만 업데이트
-- [ ] ArgoCD 자동 sync 검증
-- [ ] **데모 시나리오 녹화:**
-  - 코드 수정 push → Actions → manifests 업데이트 → ArgoCD sync → EKS 반영
-  - `git revert`로 자동 롤백 시연
-
-**ADR:** `009-argocd-gitops.md`, `010-manifest-repo-strategy.md`
-
-**완료 조건:** GitOps 풀 사이클 동작, README에 시연 영상/GIF
-
 ## 면접 답변 준비 (학습 목표)
 
-이 프로젝트로 다음 9개 질문에 즉답 가능해야 한다. **외우지 말고 학습 진행하면서 자기 말로 소화할 것.** 아래는 모범 답변 + 핵심 키워드 + 예상 후속 질문.
+이 프로젝트로 다음 8개 질문에 즉답 가능해야 한다. **외우지 말고 학습 진행하면서 자기 말로 소화할 것.** 아래는 모범 답변 + 핵심 키워드 + 예상 후속 질문.
 
 ---
 
@@ -447,24 +423,9 @@ Database per Service 패턴을 적용했고, 각 서비스 데이터 특성에 �
 
 **예상 후속 질문:**
 - "Kustomize와 비교하면?" → Helm은 템플릿 엔진 + 패키지 매니저, Kustomize는 patch 기반 overlay. Helm이 변수화 강력, Kustomize가 보기 쉬움. 둘 다 실무 사용.
-- "왜 ArgoCD ApplicationSet 안 썼나?" → Phase 5에서 도입. 환경이 더 많아지면 ApplicationSet으로 자동 생성.
-
 ---
 
-### Q6. "Github Actions 단독 CI/CD vs ArgoCD GitOps 차이는?"
-
-**답변:**
-**Github Actions 단독**은 push 기반 — Actions가 `helm upgrade` 명령으로 클러스터에 직접 배포한다. 셋업 간단하고 학습 시작에 적합하다. 단점은 **Actions가 K8s 자격증명을 가져야 하고**(보안 표면 확대), **현재 클러스터 상태와 git이 불일치할 수 있으며**, 누가 kubectl로 수동 변경해도 감지 못한다. **ArgoCD GitOps**는 pull 기반 — git을 single source of truth로 두고 ArgoCD가 클러스터에서 git을 감시해 자동 sync한다. 장점은 **선언적 인프라**, **감사 추적**(모든 배포가 git history), **drift detection**(수동 변경 자동 복구), **롤백 단순**(git revert). 단점은 초기 셋업 복잡, 학습 곡선, 소규모 프로젝트엔 오버엔지니어링일 수 있다. **이 프로젝트는 두 패턴 다 구축**해서 차이를 직접 체감하고 면접에서 비교 답변 가능하게 만들었다.
-
-**핵심 키워드:** push vs pull, single source of truth, drift detection, 감사 추적
-
-**예상 후속 질문:**
-- "ArgoCD 대신 Flux는?" → Flux도 GitOps 도구. ArgoCD는 UI 강점, Flux는 CLI/자동화 강점. CNCF 졸업 도구 둘 다.
-- "어느 회사가 어느 쪽 쓰나?" → 토스/당근 ArgoCD 다수, Weaveworks(Flux 제작사 영향권) 일부 Flux. 한국 시장은 ArgoCD가 우세.
-
----
-
-### Q7. "AI 서비스에서 캐싱 전략과 rate limiting은?"
+### Q6. "AI 서비스에서 캐싱 전략과 rate limiting은?"
 
 **답변:**
 **캐싱**은 두 레이어로 분리했다. 첫째는 **응답 캐싱** — 동일한 메모 본문이 들어오면 Claude API 재호출 없이 Redis에서 즉시 반환. 키는 본문 SHA-256 해시, TTL 24시간. 둘째는 **부분 결과 캐싱** — 요약과 태그 생성은 독립적인 호출인데, 한쪽만 실패해도 다른 결과는 살려서 재시도 비용을 줄였다. **Rate limiting**은 두 단계. 사용자별로 Redis INCR + EXPIRE 패턴으로 분당 10회 제한(애플리케이션 레벨), Claude API 자체 limit 도달 시 exponential backoff + jitter로 재시도(외부 API 레벨). 비용 관점에서도 중요한데, **캐시 적중률을 측정**해서 API 호출 비용을 추적했다. 트레이드오프는 캐시 일관성 — 동일 본문에 다른 요약을 원할 때 대응이 어렵고, `force=true` 쿼리 파라미터로 우회 옵션을 뒀다.
@@ -477,7 +438,7 @@ Database per Service 패턴을 적용했고, 각 서비스 데이터 특성에 �
 
 ---
 
-### Q8. "Turborepo 풀스택 모노레포 선택 이유와 트레이드오프는?"
+### Q7. "Turborepo 풀스택 모노레포 선택 이유와 트레이드오프는?"
 
 **답변:**
 **팀 구조와 변경 패턴이 결정 기준**이다. 풀스택을 1인 또는 소수 팀이 작업하고, 백/프론트 변경이 자주 묶이며, 타입 공유 가치가 크다고 판단해 Turborepo 풀스택 모노레포로 갔다. `libs/common`에 공통 타입을 두고 백엔드와 프론트엔드가 동시 import 해서 **API 계약 위반을 컴파일 타임에 잡는다**. Turborepo의 빌드 캐시로 변경분만 빌드해 CI 시간도 단축된다. 트레이드오프: 팀이 분리되고 서비스가 독립 배포 주기를 가지면 polyrepo가 낫고, 마이크로서비스 수십 개 이상이면 Netflix/Spotify처럼 레포 분리가 자연스럽다. 한국 스타트업 현실에선 **백엔드 모노레포 + 프론트 별도**가 가장 흔한 패턴이라 그 답변도 준비해뒀다. 빅테크는 Google/Meta의 거대 모노레포 vs Netflix의 마이크로레포로 양극화돼 있다.
@@ -490,10 +451,10 @@ Database per Service 패턴을 적용했고, 각 서비스 데이터 특성에 �
 
 ---
 
-### Q9. "Next.js를 Vercel이 아닌 EKS에 배포한 이유는?"
+### Q8. "Next.js를 Vercel이 아닌 EKS에 배포한 이유는?"
 
 **답변:**
-**일관성과 운영 통제**를 위해서다. JD에 Kubernetes 기반 환경이 명시돼 있어서, 프론트도 같은 K8s에 두는 게 인프라 일관성에 맞다. Next.js 14의 **standalone output**으로 Docker 이미지를 200MB 이하로 만들고, ALB Ingress로 web과 API를 호스트 기반 라우팅했다(`memo.example.com`, `api.memo.example.com`). 장점은 **단일 운영 환경**(K8s, Helm, ArgoCD 동일 도구), **VPC 내부 통신**(gateway 호출이 클러스터 내부 네트워크), **보안 통제** 일원화. 단점은 Vercel의 **Edge 캐싱, ISR 자동 최적화, Preview 환경**을 활용 못 한다는 점이다. 실무에선 마케팅 사이트 같은 정적 페이지가 많으면 Vercel이 낫고, 사내 인프라 일관성이 중요하면 K8s가 낫다. 이 프로젝트는 **학습 목적상 K8s 통합 경험**이 더 가치 있다고 판단했다.
+**일관성과 운영 통제**를 위해서다. JD에 Kubernetes 기반 환경이 명시돼 있어서, 프론트도 같은 K8s에 두는 게 인프라 일관성에 맞다. Next.js 14의 **standalone output**으로 Docker 이미지를 200MB 이하로 만들고, ALB Ingress로 web과 API를 호스트 기반 라우팅했다(`memo.example.com`, `api.memo.example.com`). 장점은 **단일 운영 환경**(K8s, Helm, GitHub Actions 동일 도구), **VPC 내부 통신**(gateway 호출이 클러스터 내부 네트워크), **보안 통제** 일원화. 단점은 Vercel의 **Edge 캐싱, ISR 자동 최적화, Preview 환경**을 활용 못 한다는 점이다. 실무에선 마케팅 사이트 같은 정적 페이지가 많으면 Vercel이 낫고, 사내 인프라 일관성이 중요하면 K8s가 낫다. 이 프로젝트는 **학습 목적상 K8s 통합 경험**이 더 가치 있다고 판단했다.
 
 **핵심 키워드:** 인프라 일관성, standalone output, 호스트 기반 라우팅, Edge 캐싱 trade-off
 
@@ -628,13 +589,6 @@ helm upgrade --install memo ./helm/memo-app -f values-prod.yaml
 eksctl delete cluster --name memo-prod    # 비용 절약, 작업 종료 시 필수
 ```
 
-### ArgoCD
-```bash
-kubectl port-forward svc/argocd-server -n argocd 8080:443
-argocd app sync memo-gateway
-argocd app history memo-gateway
-```
-
 ## ADR (Architecture Decision Records)
 
 각 의사결정은 `docs/decisions/` 폴더에 ADR로 기록한다. 면접 답변과 직결되므로 결정 즉시 작성.
@@ -662,7 +616,7 @@ argocd app history memo-gateway
 **작성 원칙:**
 - 결정 직후 즉시 작성. 나중에 쓰면 동기 흐려짐.
 - 200~400단어, A4 1페이지 미만.
-- 면접 답변(위 Q1~Q9)과 연결되는 부분 명시.
+- 면접 답변(위 Q1~Q8)과 연결되는 부분 명시.
 
 **예정된 ADR:**
 - 001: 모놀리식 → MSA 분리 (Q1과 연결)
@@ -672,12 +626,10 @@ argocd app history memo-gateway
 - 005: Ingress 라우팅 전략 (Q4)
 - 006: EKS vs self-hosted K8s (Q4)
 - 007: Secret 관리 전략 (Q5)
-- 008: CI/CD 파이프라인 설계 (Q6)
-- 009: ArgoCD GitOps 도입 (Q6)
-- 010: 매니페스트 레포 분리 전략 (Q6)
-- 011: Turborepo 풀스택 모노레포 (Q8)
-- 012: Next.js EKS 배포 (Q9)
-- 013: AI 캐싱 + rate limiting 전략 (Q7)
+- 008: CI/CD 파이프라인 설계
+- 009: Turborepo 풀스택 모노레포 (Q7)
+- 010: Next.js EKS 배포 (Q8)
+- 011: AI 캐싱 + rate limiting 전략 (Q6)
 
 ## 중요 원칙
 
@@ -685,7 +637,7 @@ argocd app history memo-gateway
 
 2. **로컬에서 99% 완성.** EKS는 면접 어필용 단기 사용 (수 시간 단위).
 
-3. **각 의사결정에 ADR 남기기.** 면접 답변(Q1~Q9) 무기.
+3. **각 의사결정에 ADR 남기기.** 면접 답변(Q1~Q8) 무기.
 
 4. **과한 추상화 금지.** 학습 프로젝트라 직관적 코드 우선. 일반화는 두 번째 유사 케이스 등장 후.
 
@@ -716,12 +668,11 @@ EKS 사용 시 작업 종료 시 무조건 클러스터 삭제. 매니페스트�
 - Secret 정보는 절대 git에 커밋 금지
 - 작업 완료 후 `docs/decisions/` 업데이트
 - 매 Phase 완료 시 README 업데이트
-- ADR 작성 시 면접 답변(Q1~Q9)과 어떻게 연결되는지 명시
+- ADR 작성 시 면접 답변(Q1~Q8)과 어떻게 연결되는지 명시
 
 ## 현재 진행 상태
 
 - [x] Phase 1: Nest.js 모놀리식 + Turborepo 셋업 (테스트 제외)
 - [x] Phase 2: Next.js + MSA 분리 (Redis Pub/Sub, ADR 제외)
-- [ ] Phase 3: Docker + 로컬 K8s
-- [ ] Phase 4: EKS + Github Actions CI/CD
-- [ ] Phase 5: ArgoCD GitOps
+- [x] Phase 3: Docker + 로컬 K8s
+- [x] Phase 4: EKS + Github Actions CI/CD

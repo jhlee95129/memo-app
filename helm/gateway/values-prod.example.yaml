@@ -1,0 +1,44 @@
+replicaCount: 2
+
+image:
+  repository: REGISTRY_PLACEHOLDER/memo-app/gateway
+  tag: latest
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 3000
+
+ingress:
+  enabled: true
+  className: alb
+  host: ""
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/group.name: memo-app
+    alb.ingress.kubernetes.io/group.order: "1"
+    alb.ingress.kubernetes.io/healthcheck-path: /auth/login
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+  paths:
+    - /auth
+    - /memos
+
+resources:
+  limits:
+    cpu: 300m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+env:
+  GATEWAY_PORT: "3000"
+  AUTH_SERVICE_HOST: auth-service
+  AUTH_SERVICE_PORT: "4001"
+  MEMO_SERVICE_HOST: memo-service
+  MEMO_SERVICE_PORT: "4002"
+
+# Secrets are injected via --set in CD pipeline (GitHub Secrets)
+secret:
+  JWT_SECRET: ""

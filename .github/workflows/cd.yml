@@ -1,0 +1,159 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+env:
+  AWS_REGION: ap-northeast-2
+  EKS_CLUSTER: memo-prod
+  NAMESPACE: memo
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.TAG }}
+      registry: ${{ steps.ecr-login.outputs.registry }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image tag
+        id: tag
+        run: echo "TAG=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+      - name: Build and push backend images
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          TAG: ${{ steps.tag.outputs.TAG }}
+        run: |
+          for svc in gateway auth-service memo-service ai-service; do
+            echo "=== Building $svc ==="
+            docker build \
+              --platform linux/amd64 \
+              -t $REGISTRY/memo-app/$svc:$TAG \
+              -t $REGISTRY/memo-app/$svc:latest \
+              -f apps/$svc/Dockerfile .
+            docker push $REGISTRY/memo-app/$svc:$TAG
+            docker push $REGISTRY/memo-app/$svc:latest
+          done
+
+      - name: Build and push web image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          TAG: ${{ steps.tag.outputs.TAG }}
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            --build-arg NEXT_PUBLIC_API_URL=${{ secrets.ALB_DNS_URL }} \
+            -t $REGISTRY/memo-app/web:$TAG \
+            -t $REGISTRY/memo-app/web:latest \
+            -f apps/web/Dockerfile .
+          docker push $REGISTRY/memo-app/web:$TAG
+          docker push $REGISTRY/memo-app/web:latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
+
+      - name: Deploy auth-service
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          TAG: ${{ needs.build-and-push.outputs.tag }}
+        run: |
+          helm upgrade --install auth-service ./helm/auth-service \
+            -n ${{ env.NAMESPACE }} \
+            -f ./helm/auth-service/values-prod.example.yaml \
+            --set image.repository=$REGISTRY/memo-app/auth-service \
+            --set image.tag=$TAG \
+            --set "secret.POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" \
+            --set "secret.JWT_SECRET=${{ secrets.JWT_SECRET }}" \
+            --wait --timeout 120s
+
+      - name: Deploy memo-service
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          TAG: ${{ needs.build-and-push.outputs.tag }}
+        run: |
+          helm upgrade --install memo-service ./helm/memo-service \
+            -n ${{ env.NAMESPACE }} \
+            -f ./helm/memo-service/values-prod.example.yaml \
+            --set image.repository=$REGISTRY/memo-app/memo-service \
+            --set image.tag=$TAG \
+            --set "secret.MONGO_URI=${{ secrets.MONGO_URI }}" \
+            --wait --timeout 120s
+
+      - name: Deploy ai-service
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          TAG: ${{ needs.build-and-push.outputs.tag }}
+        run: |
+          helm upgrade --install ai-service ./helm/ai-service \
+            -n ${{ env.NAMESPACE }} \
+            -f ./helm/ai-service/values-prod.example.yaml \
+            --set image.repository=$REGISTRY/memo-app/ai-service \
+            --set image.tag=$TAG \
+            --set "secret.REDIS_URL=${{ secrets.REDIS_URL }}" \
+            --set "secret.ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" \
+            --wait --timeout 120s
+
+      - name: Deploy gateway
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          TAG: ${{ needs.build-and-push.outputs.tag }}
+        run: |
+          helm upgrade --install gateway ./helm/gateway \
+            -n ${{ env.NAMESPACE }} \
+            -f ./helm/gateway/values-prod.example.yaml \
+            --set image.repository=$REGISTRY/memo-app/gateway \
+            --set image.tag=$TAG \
+            --set "secret.JWT_SECRET=${{ secrets.JWT_SECRET }}" \
+            --wait --timeout 120s
+
+      - name: Deploy web
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          TAG: ${{ needs.build-and-push.outputs.tag }}
+        run: |
+          helm upgrade --install web ./helm/web \
+            -n ${{ env.NAMESPACE }} \
+            -f ./helm/web/values-prod.example.yaml \
+            --set image.repository=$REGISTRY/memo-app/web \
+            --set image.tag=$TAG \
+            --wait --timeout 120s
+
+      - name: Verify deployment
+        run: |
+          echo "=== Pods ==="
+          kubectl get pods -n ${{ env.NAMESPACE }}
+          echo "=== Ingress ==="
+          kubectl get ingress -n ${{ env.NAMESPACE }}

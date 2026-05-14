@@ -1,0 +1,26 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: memo-prod
+  region: ap-northeast-2
+  version: "1.31"
+
+iam:
+  withOIDC: true
+
+managedNodeGroups:
+  - name: workers
+    instanceType: t3.small
+    desiredCapacity: 2
+    minSize: 1
+    maxSize: 3
+    spot: true
+    volumeSize: 20
+    labels:
+      role: worker
+    tags:
+      project: memo-app
+    iam:
+      withAddonPolicies:
+        albIngress: true

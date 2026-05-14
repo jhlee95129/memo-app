@@ -10,7 +10,11 @@ export const typeOrmConfig: TypeOrmModuleAsyncOptions = {
     password: configService.get<string>('POSTGRES_PASSWORD', 'memo1234'),
     database: configService.get<string>('POSTGRES_DB', 'memo_auth'),
     autoLoadEntities: true,
-    synchronize: configService.get<string>('NODE_ENV') !== 'production',
+    synchronize: configService.get<string>('TYPEORM_SYNCHRONIZE', 'false') === 'true' ||
+      configService.get<string>('NODE_ENV') !== 'production',
+    ssl: configService.get<string>('POSTGRES_SSL', 'false') === 'true'
+      ? { rejectUnauthorized: false }
+      : false,
   }),
   inject: [ConfigService],
 };

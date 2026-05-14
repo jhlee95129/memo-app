@@ -5,17 +5,25 @@ metadata:
   name: {{ .Release.Name }}
   labels:
     app: {{ .Release.Name }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:
-    - host: {{ .Values.ingress.host }}
+    - {{- if .Values.ingress.host }}
+      host: {{ .Values.ingress.host }}
+      {{- end }}
       http:
         paths:
-          - path: /
+        {{- range .Values.ingress.paths | default (list "/") }}
+          - path: {{ . }}
             pathType: Prefix
             backend:
               service:
-                name: {{ .Release.Name }}
+                name: {{ $.Release.Name }}
                 port:
-                  number: {{ .Values.service.port }}
+                  number: {{ $.Values.service.port }}
+        {{- end }}
 {{- end }}

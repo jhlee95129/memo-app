@@ -1,0 +1,28 @@
+replicaCount: 2
+
+image:
+  repository: REGISTRY_PLACEHOLDER/memo-app/memo-service
+  tag: latest
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 4002
+
+resources:
+  limits:
+    cpu: 300m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+env:
+  MEMO_SERVICE_HOST: "0.0.0.0"
+  MEMO_SERVICE_PORT: "4002"
+  AI_SERVICE_HOST: ai-service
+  AI_SERVICE_PORT: "4003"
+
+# Secrets are injected via --set in CD pipeline (GitHub Secrets)
+secret:
+  MONGO_URI: ""

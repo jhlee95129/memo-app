@@ -10,6 +10,10 @@ RUN pnpm install --frozen-lockfile
 
 COPY libs/common/ ./libs/common/
 COPY apps/web/ ./apps/web/
+
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 RUN pnpm --filter @memo-app/common build && pnpm --filter web build
 
 # Stage 2: Runtime

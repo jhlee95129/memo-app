@@ -6,3 +6,6 @@ dist
 .env.*
 !.env.example
 .claude/
+
+# Helm prod values (contains secrets)
+helm/*/values-prod.yaml
