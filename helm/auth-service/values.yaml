@@ -1,0 +1,31 @@
+replicaCount: 1
+
+image:
+  repository: memo-app/auth-service
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 4001
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+env:
+  AUTH_SERVICE_HOST: "0.0.0.0"
+  AUTH_SERVICE_PORT: "4001"
+  POSTGRES_HOST: host.docker.internal
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: memo
+  POSTGRES_DB: memo_auth
+
+secret:
+  POSTGRES_PASSWORD: memo1234
+  JWT_SECRET: dev-jwt-secret
+  JWT_EXPIRES_IN: 1h

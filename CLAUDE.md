@@ -307,22 +307,21 @@ git commit -m "chore: Turborepo + pnpm workspace 초기화"
 ### Phase 3: Docker + 로컬 K8s (Week 3)
 
 **Docker:**
-- [ ] 5개 앱 Dockerfile (multi-stage, Node.js 20 Alpine)
-- [ ] Next.js standalone output 활용
-- [ ] `.dockerignore` 최적화
-- [ ] 이미지 사이즈 목표: Nest 앱 < 200MB, Next.js < 250MB
+- [x] 5개 앱 Dockerfile (multi-stage, Node.js 22 Alpine)
+- [x] Next.js standalone output 활용
+- [x] `.dockerignore` 최적화
+- [x] 이미지 사이즈 목표: Nest 앱 < 200MB, Next.js < 250MB (실제: 64~75MB)
+- [x] docker-compose.dev.yml (전체 스택)
 
 **Kubernetes (kind):**
-- [ ] kind 클러스터 셋업 (`kind-config.yaml`)
-- [ ] Raw K8s 매니페스트 작성 (각 서비스)
-  - Deployment, Service, ConfigMap, Secret
-  - Liveness/Readiness probe
-  - Resource limits/requests
-- [ ] nginx-ingress 설치
-- [ ] Ingress 매니페스트 (호스트 기반 라우팅: web vs api)
-- [ ] `/etc/hosts`에 `memo.local`, `api.memo.local` 추가
-- [ ] **Helm Chart로 변환** (5개)
-- [ ] `values.yaml` 작성
+- [x] kind 클러스터 설정 (`kind-config.yaml`)
+- [x] 네임스페이스 매니페스트 (`k8s/infra/namespace.yaml`)
+- [x] **Helm Chart 5개** (deployment, service, configmap, secret, ingress 포함)
+- [x] `values.yaml` 작성 (Liveness/Readiness probe, resource limits/requests 포함)
+- [x] kind 클러스터 생성 + nginx-ingress 설치
+- [x] 이미지 빌드 + kind 로드
+- [x] helm install + 동작 검증 (5/5 Pod Running)
+- [x] `/etc/hosts`에 `memo.local`, `api.memo.local` 추가
 
 **ADR:** `004-helm-values-split.md`, `005-ingress-routing.md`
 

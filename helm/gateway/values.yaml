@@ -1,0 +1,33 @@
+replicaCount: 1
+
+image:
+  repository: memo-app/gateway
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 3000
+
+ingress:
+  enabled: true
+  className: nginx
+  host: api.memo.local
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+env:
+  GATEWAY_PORT: "3000"
+  AUTH_SERVICE_HOST: auth-service
+  AUTH_SERVICE_PORT: "4001"
+  MEMO_SERVICE_HOST: memo-service
+  MEMO_SERVICE_PORT: "4002"
+
+secret:
+  JWT_SECRET: dev-jwt-secret

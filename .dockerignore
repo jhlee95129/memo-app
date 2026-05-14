@@ -1,0 +1,12 @@
+node_modules
+dist
+.next
+.turbo
+.git
+.claude
+.env
+.env.*
+!.env.example
+*.md
+docs
+.github

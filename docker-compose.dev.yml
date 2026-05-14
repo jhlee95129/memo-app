@@ -1,0 +1,109 @@
+services:
+  # --- DB (기존 docker-compose.yml과 동일) ---
+  postgres:
+    image: postgres:16-alpine
+    container_name: memo-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: memo
+      POSTGRES_PASSWORD: memo1234
+      POSTGRES_DB: memo_auth
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mongo:
+    image: mongo:7
+    container_name: memo-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: memo
+      MONGO_INITDB_ROOT_PASSWORD: memo1234
+      MONGO_INITDB_DATABASE: memo_db
+    volumes:
+      - mongo_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    container_name: memo-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # --- App Services ---
+  auth-service:
+    build:
+      context: .
+      dockerfile: apps/auth-service/Dockerfile
+    container_name: memo-auth-service
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: memo
+      POSTGRES_PASSWORD: memo1234
+      POSTGRES_DB: memo_auth
+      JWT_SECRET: dev-jwt-secret
+      JWT_EXPIRES_IN: 1h
+    depends_on:
+      - postgres
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: apps/ai-service/Dockerfile
+    container_name: memo-ai-service
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on:
+      - redis
+
+  memo-service:
+    build:
+      context: .
+      dockerfile: apps/memo-service/Dockerfile
+    container_name: memo-memo-service
+    environment:
+      MONGO_URI: mongodb://memo:memo1234@mongo:27017/memo_db?authSource=admin
+      AI_SERVICE_HOST: ai-service
+      AI_SERVICE_PORT: 4003
+    depends_on:
+      - mongo
+      - ai-service
+
+  gateway:
+    build:
+      context: .
+      dockerfile: apps/gateway/Dockerfile
+    container_name: memo-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      AUTH_SERVICE_HOST: auth-service
+      AUTH_SERVICE_PORT: 4001
+      MEMO_SERVICE_HOST: memo-service
+      MEMO_SERVICE_PORT: 4002
+      JWT_SECRET: dev-jwt-secret
+    depends_on:
+      - auth-service
+      - memo-service
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: memo-web
+    ports:
+      - "3001:3001"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3000
+    depends_on:
+      - gateway
+
+volumes:
+  postgres_data:
+  mongo_data:
+  redis_data:

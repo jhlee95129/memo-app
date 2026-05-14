@@ -1,0 +1,27 @@
+replicaCount: 1
+
+image:
+  repository: memo-app/ai-service
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 4003
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+env:
+  AI_SERVICE_HOST: "0.0.0.0"
+  AI_SERVICE_PORT: "4003"
+  REDIS_HOST: host.docker.internal
+  REDIS_PORT: "6379"
+
+secret:
+  ANTHROPIC_API_KEY: placeholder-change-me

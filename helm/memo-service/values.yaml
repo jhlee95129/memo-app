@@ -1,0 +1,27 @@
+replicaCount: 1
+
+image:
+  repository: memo-app/memo-service
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 4002
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+env:
+  MEMO_SERVICE_HOST: "0.0.0.0"
+  MEMO_SERVICE_PORT: "4002"
+  AI_SERVICE_HOST: ai-service
+  AI_SERVICE_PORT: "4003"
+
+secret:
+  MONGO_URI: mongodb://memo:memo1234@host.docker.internal:27017/memo_db?authSource=admin

@@ -1,0 +1,26 @@
+replicaCount: 1
+
+image:
+  repository: memo-app/web
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 3001
+
+ingress:
+  enabled: true
+  className: nginx
+  host: memo.local
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+env:
+  NEXT_PUBLIC_API_URL: http://api.memo.local
